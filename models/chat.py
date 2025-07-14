@@ -29,5 +29,10 @@ class ChatResponse(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     products_mentioned: Optional[List[int]] = None
     
+class MultiChatResponse(BaseModel):
+    messages: List[str]
+    timestamp: datetime = Field(default_factory=datetime.now)
+    products_mentioned: Optional[List[int]] = None
+    
 class ChatRequest(BaseModel):
     message: str 

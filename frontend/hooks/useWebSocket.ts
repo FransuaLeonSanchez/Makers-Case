@@ -34,12 +34,12 @@ export function useWebSocket(url: string) {
           content: data.message,
           timestamp: new Date().toISOString(),
         }]);
-      } else if (data.type === 'response') {
+      } else if (data.type === 'message' || data.type === 'response') {
         setIsTyping(false);
         setMessages((prev) => [...prev, {
           type: 'response',
           content: data.message || data.response,
-          timestamp: new Date().toISOString(),
+          timestamp: data.timestamp || new Date().toISOString(),
         }]);
       } else if (data.type === 'error') {
         setIsTyping(false);

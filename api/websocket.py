@@ -1,6 +1,8 @@
 from fastapi import WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
+import asyncio
+from datetime import datetime
 import logging
 from database import get_session
 from services.chat_service import ChatService
@@ -74,23 +76,37 @@ async def websocket_endpoint(websocket: WebSocket, db_session: AsyncSession = De
                 inventory_service = InventoryService(db_session)
                 recommendation_service = RecommendationService(db_session)
                 
-                response = await chat_service.process_message(
+                multi_response = await chat_service.process_message(
                     message=user_message,
                     inventory_service=inventory_service,
                     recommendation_service=recommendation_service,
                     db_session=db_session
                 )
                 
-                await manager.send_message(
-                    json.dumps({
-                        "type": "response",
-                        "message": response.message,
-                        "timestamp": response.timestamp.isoformat(),
-                        "products_mentioned": response.products_mentioned
-                    }),
-                    websocket
-                )
+                # Enviar cada mensaje con un pequeño delay para simular escritura natural
+                for i, msg in enumerate(multi_response.messages):
+                    if i > 0:
+                        # Mostrar indicador de escritura entre mensajes
+                        await manager.send_message(
+                            json.dumps({
+                                "type": "typing"
+                            }),
+                            websocket
+                        )
+                        # Delay proporcional a la longitud del mensaje (simulando velocidad de escritura)
+                        delay = min(len(msg) * 0.01, 1.5)  # Max 1.5 segundos de delay
+                        await asyncio.sleep(delay)
                     
+                    await manager.send_message(
+                        json.dumps({
+                            "type": "message",
+                            "message": msg,
+                            "timestamp": multi_response.timestamp.isoformat(),
+                            "products_mentioned": multi_response.products_mentioned
+                        }),
+                        websocket
+                    )
+                
             except json.JSONDecodeError:
                 await manager.send_message(
                     json.dumps({

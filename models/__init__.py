@@ -1,5 +1,5 @@
 from .product import Product, ProductCategory, ProductCreate, ProductResponse
-from .chat import ChatMessage, ChatResponse, ChatHistory
+from .chat import ChatMessage, ChatResponse, ChatHistory, MultiChatResponse
 
 __all__ = [
     "Product", 
@@ -8,5 +8,6 @@ __all__ = [
     "ProductResponse",
     "ChatMessage", 
     "ChatHistory", 
-    "ChatResponse"
+    "ChatResponse",
+    "MultiChatResponse"
 ] 

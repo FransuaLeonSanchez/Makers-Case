@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional, Any
-from models.chat import ChatMessage, MessageRole, ChatResponse, ChatHistory
+from models.chat import ChatMessage, MessageRole, ChatResponse, ChatHistory, MultiChatResponse
 from models.product import ProductCategory
 from services.inventory_service import InventoryService
 from services.recommendation_service import RecommendationService
@@ -93,22 +93,42 @@ class ChatService:
         self.use_mock = use_mock
         self.system_prompt = """Eres un asistente virtual experto de Makers Tech, una tienda especializada en tecnología.
 
-INSTRUCCIONES:
-- Responde SIEMPRE en español de forma amable y profesional
-- Ayuda a clientes con consultas sobre inventario, características técnicas y precios
-- Incluye precios y stock disponible cuando menciones productos
-- Ofrece recomendaciones basadas en las necesidades del cliente
-- Si no tienes información específica, usa el contexto del inventario proporcionado
-- Mantén conversaciones naturales y útiles para ayudar en decisiones de compra
+INFORMACIÓN DE LA EMPRESA:
+- Horarios de atención: Lunes a Viernes de 9:00 AM a 6:00 PM, Sábados de 9:00 AM a 2:00 PM
+- Ubicación: Av. Tecnología 123, Ciudad Tech
+- Teléfono: +1 (555) 123-4567
+- Email: ventas@makerstech.com
+- Envíos: A todo el país en 24-48 horas
+- Garantía: Todos nuestros productos tienen garantía de 1 año
 
-IMPORTANTE AL MOSTRAR PRODUCTOS:
-- Cuando te pregunten por productos disponibles, NO envíes toda la información en un solo mensaje largo
-- Separa la información de cada producto en párrafos distintos, como si fueras una persona escribiendo
-- Para cada producto menciona: nombre/modelo, marca, precio y stock disponible
-- Después de mostrar los productos, pregunta si el cliente quiere más detalles sobre alguno específico
-- Sé conversacional y natural, no como un catálogo
+INSTRUCCIONES IMPORTANTES:
+- Responde SIEMPRE en español de forma amable, profesional y CONCISA
+- Mantén las respuestas CORTAS y naturales (máximo 2-3 líneas por mensaje)
+- Si necesitas mostrar varios productos, SEPARA cada producto en un mensaje diferente
+- Actúa como si estuvieras escribiendo en tiempo real, no como un catálogo
+- Incluye precios y stock cuando menciones productos específicos
+- Si te preguntan por stock específico de un producto, da el número exacto
+- Después de mostrar 2-3 productos, pregunta si quieren ver más opciones
 
-OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la tecnología perfecta para sus necesidades."""
+FORMATO AL MOSTRAR PRODUCTOS:
+- Mensaje 1: Saludo breve + primer producto
+- Mensaje 2: Segundo producto (si aplica)
+- Mensaje 3: Tercer producto (si aplica)
+- Mensaje final: Pregunta si necesitan más información
+
+EJEMPLO DE RESPUESTA MÚLTIPLE:
+Usuario: "¿Qué laptops tienen?"
+Mensaje 1: "¡Claro! Te muestro nuestras laptops disponibles 💻"
+Mensaje 2: "La HP Pavilion 15 es perfecta para trabajo diario - $899.99 (5 unidades)"
+Mensaje 3: "También tenemos la MacBook Air M2, ideal si buscas portabilidad - $1499.99 (1 unidad)"
+Mensaje 4: "¿Te interesa alguna en particular o quieres ver más opciones?"
+
+INFORMACIÓN DE STOCK:
+- Si preguntan cuántas unidades hay de un producto específico, responde con el número exacto
+- Si el stock es bajo (menos de 3), menciona que quedan pocas unidades
+- Si no hay stock, ofrece alternativas similares
+
+OBJETIVO: Ser un vendedor amigable y eficiente que ayuda con respuestas cortas y claras."""
         
         if use_mock:
             self.llm = MockChatModel()
@@ -126,7 +146,7 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
         inventory_service: Optional[InventoryService] = None,
         recommendation_service: Optional[RecommendationService] = None,
         db_session: Optional[AsyncSession] = None
-    ) -> ChatResponse:
+    ) -> MultiChatResponse:
         """Procesa un mensaje del usuario y genera una respuesta"""
         
         # Obtener historial de chat reciente (últimos 10 mensajes)
@@ -175,6 +195,9 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
         response = await self.llm.agenerate([messages])
         response_text = response.generations[0][0].text
         
+        # Dividir la respuesta en múltiples mensajes si es necesario
+        response_messages = self._split_response(response_text)
+        
         # Guardar en el historial si tenemos sesión de DB
         if db_session:
             # Guardar mensaje del usuario
@@ -185,26 +208,105 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
             )
             db_session.add(user_msg)
             
-            # Guardar respuesta del asistente
-            assistant_msg = ChatHistory(
-                role="assistant",
-                content=response_text,
-                timestamp=datetime.now(),
-                products_mentioned=json.dumps(products_mentioned) if products_mentioned else None
-            )
-            db_session.add(assistant_msg)
+            # Guardar cada mensaje de respuesta del asistente
+            for msg in response_messages:
+                assistant_msg = ChatHistory(
+                    role="assistant",
+                    content=msg,
+                    timestamp=datetime.now(),
+                    products_mentioned=json.dumps(products_mentioned) if products_mentioned else None
+                )
+                db_session.add(assistant_msg)
             
             await db_session.commit()
         
-        return ChatResponse(
-            message=response_text,
+        return MultiChatResponse(
+            messages=response_messages,
             products_mentioned=products_mentioned if products_mentioned else None
         )
+    
+    def _split_response(self, response: str) -> List[str]:
+        """Divide una respuesta larga en mensajes más cortos y naturales"""
+        # Si la respuesta es corta, no dividir
+        if len(response) < 150:
+            return [response]
+        
+        # Buscar mensajes que ya vienen separados por el modelo
+        if "Mensaje 1:" in response or "Mensaje 2:" in response:
+            # El modelo ya dividió la respuesta
+            messages = []
+            parts = response.split("Mensaje ")
+            for part in parts[1:]:  # Saltar el primer elemento vacío
+                if ":" in part:
+                    content = part.split(":", 1)[1].strip()
+                    messages.append(content)
+            return messages if messages else [response]
+        
+        # Dividir por párrafos o puntos
+        paragraphs = response.split('\n\n')
+        messages = []
+        current_message = ""
+        
+        for para in paragraphs:
+            # Si es una lista de productos, cada producto es un mensaje
+            if para.strip().startswith(('1.', '2.', '3.', '-', '•', '*')):
+                if current_message:
+                    messages.append(current_message.strip())
+                    current_message = ""
+                
+                # Dividir lista en elementos individuales
+                items = re.split(r'\n(?=\d+\.|[-•*])', para)
+                for item in items:
+                    if item.strip():
+                        messages.append(item.strip())
+            else:
+                # Acumular párrafos normales hasta cierto límite
+                if len(current_message) + len(para) > 200:
+                    if current_message:
+                        messages.append(current_message.strip())
+                    current_message = para
+                else:
+                    current_message += "\n\n" + para if current_message else para
+        
+        # Agregar el último mensaje si queda algo
+        if current_message:
+            messages.append(current_message.strip())
+        
+        # Si no se pudo dividir bien, devolver la respuesta original
+        return messages if messages else [response]
     
     async def _build_context(self, message: str, inventory_service: InventoryService) -> str:
         """Construye contexto relevante basado en el mensaje"""
         context_parts = []
         message_lower = message.lower()
+        
+        # Detectar si preguntan por stock específico
+        stock_keywords = ["stock", "unidades", "disponible", "disponibles", "quedan", "hay", "tienen", "cuántos", "cuántas"]
+        is_stock_query = any(keyword in message_lower for keyword in stock_keywords)
+        
+        # Detectar productos específicos mencionados por nombre/modelo
+        specific_product_keywords = [
+            "hp pavilion", "hp probook", "macbook", "zenbook", "thinkpad", "dell xps",
+            "iphone", "galaxy", "pixel", "oneplus", "xiaomi",
+            "ipad", "surface", "galaxy tab",
+            "imac", "optiplex", "elite tower"
+        ]
+        
+        mentioned_products = []
+        for keyword in specific_product_keywords:
+            if keyword in message_lower:
+                products = await inventory_service.search_products(keyword)
+                mentioned_products.extend(products)
+        
+        # Si hay productos específicos mencionados y es consulta de stock
+        if mentioned_products and is_stock_query:
+            context_parts.append("\nStock específico de productos mencionados:")
+            for product in mentioned_products:
+                stock_status = "⚠️ Pocas unidades" if product.stock < 3 else "✅ Disponible"
+                context_parts.append(
+                    f"- {product.name}: {product.stock} unidades {stock_status}"
+                )
+            return "\n".join(context_parts)
         
         # Detectar categorías mencionadas
         category_keywords = {
@@ -247,8 +349,11 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
                 if products:
                     context_parts.append(f"\nProductos disponibles en {category.value}:")
                     for product in products[:5]:  # Limitar a 5 productos por categoría
+                        stock_info = f"Stock: {product.stock}"
+                        if product.stock < 3:
+                            stock_info += " (⚠️ Pocas unidades)"
                         context_parts.append(
-                            f"- {product.name} ({product.brand}): ${product.price} - Stock: {product.stock}"
+                            f"- {product.name} ({product.brand}): ${product.price} - {stock_info}"
                         )
         
         # Buscar por marca si se menciona
@@ -259,8 +364,11 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
                 if products:
                     context_parts.append(f"\nProductos de {brand.capitalize()}:")
                     for product in products[:5]:
+                        stock_info = f"Stock: {product.stock}"
+                        if product.stock < 3:
+                            stock_info += " (⚠️ Pocas unidades)"
                         context_parts.append(
-                            f"- {product.name}: ${product.price} - Stock: {product.stock}"
+                            f"- {product.name}: ${product.price} - {stock_info}"
                         )
         
         # Si no hay contexto específico, buscar por términos generales
@@ -269,8 +377,11 @@ OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la 
             if search_results:
                 context_parts.append("\nProductos relacionados con tu búsqueda:")
                 for product in search_results[:5]:
+                    stock_info = f"Stock: {product.stock}"
+                    if product.stock < 3:
+                        stock_info += " (⚠️ Pocas unidades)"
                     context_parts.append(
-                        f"- {product.name} ({product.brand}): ${product.price} - Stock: {product.stock}"
+                        f"- {product.name} ({product.brand}): ${product.price} - {stock_info}"
                     )
         
         return "\n".join(context_parts)

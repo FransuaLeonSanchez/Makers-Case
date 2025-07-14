@@ -6,7 +6,7 @@ from database import get_session
 from services.chat_service import ChatService
 from services.inventory_service import InventoryService
 from services.recommendation_service import RecommendationService
-from models.chat import ChatResponse, ChatHistory, ChatMessage
+from models.chat import ChatResponse, ChatHistory, ChatMessage, MultiChatResponse
 from config import settings
 from sqlalchemy import select, delete, func
 from datetime import datetime
@@ -23,7 +23,7 @@ class MessageHistoryResponse(BaseModel):
     messages: List[dict]
     total: int
 
-@router.post("/message", response_model=ChatResponse)
+@router.post("/message")
 async def send_message(
     request: ChatRequest,
     session: AsyncSession = Depends(get_session)
@@ -32,7 +32,7 @@ async def send_message(
     recommendation_service = RecommendationService(session)
     
     try:
-        response = await chat_service.process_message(
+        multi_response = await chat_service.process_message(
             message=request.message,
             inventory_service=inventory_service,
             recommendation_service=recommendation_service,
@@ -40,7 +40,15 @@ async def send_message(
         )
         # Asegurar que los cambios se guarden
         await session.commit()
-        return response
+        
+        # Por compatibilidad con el frontend, devolver el primer mensaje como principal
+        # y los demás como mensajes adicionales
+        return {
+            "message": multi_response.messages[0] if multi_response.messages else "",
+            "additional_messages": multi_response.messages[1:] if len(multi_response.messages) > 1 else [],
+            "timestamp": multi_response.timestamp,
+            "products_mentioned": multi_response.products_mentioned
+        }
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
