@@ -39,6 +39,7 @@ class InventoryService:
         return result.scalars().all()
     
     async def get_inventory_summary(self) -> Dict:
+        # Obtener resumen por categoría
         result = await self.session.execute(
             select(
                 Product.category,
@@ -48,21 +49,51 @@ class InventoryService:
             .group_by(Product.category)
         )
         
-        summary = {
-            "por_categoria": {},
-            "total_productos": 0,
-            "total_stock": 0
-        }
+        by_category = []
+        total_products = 0
+        total_stock = 0
         
         for row in result:
-            summary["por_categoria"][row.category.value] = {
-                "cantidad_productos": row.count,
-                "stock_total": row.total_stock or 0
+            by_category.append({
+                "category": row.category.value,
+                "count": row.count,
+                "total_stock": row.total_stock or 0
+            })
+            total_products += row.count
+            total_stock += row.total_stock or 0
+        
+        # Calcular valor total del inventario
+        value_result = await self.session.execute(
+            select(func.sum(Product.price * Product.stock)).where(Product.is_active == True)
+        )
+        total_value = value_result.scalar() or 0
+        
+        # Obtener productos con stock bajo (menos de 5 unidades)
+        low_stock_result = await self.session.execute(
+            select(Product).where(
+                Product.stock < 5,
+                Product.is_active == True
+            ).order_by(Product.stock)
+        )
+        low_stock_products = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "brand": p.brand,
+                "model": p.model,
+                "stock": p.stock,
+                "price": p.price
             }
-            summary["total_productos"] += row.count
-            summary["total_stock"] += row.total_stock or 0
-            
-        return summary
+            for p in low_stock_result.scalars().all()
+        ]
+        
+        return {
+            "by_category": by_category,
+            "total_products": total_products,
+            "total_stock": total_stock,
+            "total_value": float(total_value),
+            "low_stock_products": low_stock_products
+        }
     
     async def search_products(self, query: str) -> List[Product]:
         search_term = f"%{query}%"

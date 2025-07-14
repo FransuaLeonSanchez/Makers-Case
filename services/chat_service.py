@@ -1,16 +1,14 @@
 from typing import List, Dict, Optional, Any
 from models.chat import ChatMessage, ChatSession, MessageRole, ChatResponse
+from models.product import ProductCategory
 from services.inventory_service import InventoryService
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
-from langchain.memory import ConversationBufferMemory
-from langchain.chat_models.base import BaseChatModel
-from langchain.schema import BaseMessage
-from langchain.callbacks.manager import CallbackManagerForLLMRun
-from langchain.schema.output import ChatResult, ChatGeneration
-from langchain.schema.messages import BaseMessageChunk
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
+from langchain_core.language_models import BaseChatModel
+from langchain_core.outputs import ChatResult, ChatGeneration
 import json
 import re
 import uuid
+import os
 from datetime import datetime
 
 class MockChatModel(BaseChatModel):
@@ -24,7 +22,6 @@ class MockChatModel(BaseChatModel):
         self,
         messages: List[BaseMessage],
         stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> ChatResult:
         last_message = messages[-1].content if messages else ""
@@ -37,10 +34,9 @@ class MockChatModel(BaseChatModel):
         self,
         messages: List[BaseMessage],
         stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> ChatResult:
-        return self._generate(messages, stop, run_manager, **kwargs)
+        return self._generate(messages, stop, **kwargs)
     
     def _generate_mock_response(self, user_input: str) -> str:
         user_input_lower = user_input.lower()
@@ -49,7 +45,14 @@ class MockChatModel(BaseChatModel):
             return "¡Hola! Bienvenido a Makers Tech. Soy tu asistente virtual y estoy aquí para ayudarte con información sobre nuestros productos. ¿En qué puedo ayudarte hoy?"
         
         elif "computadora" in user_input_lower or "computador" in user_input_lower or "desktop" in user_input_lower:
-            return "En este momento tenemos 1 computadora de escritorio disponible: la Dell OptiPlex 3000. Es una computadora compacta y potente ideal para oficina, con procesador Intel Core i5-12500, 8GB de RAM y 256GB SSD. Su precio es de $799.99. ¿Te gustaría conocer más detalles sobre este equipo?"
+            return """¡Claro! Te muestro las computadoras que tenemos disponibles:
+
+Tenemos la **Dell OptiPlex 3000**, una excelente computadora de escritorio para oficina.
+Precio: $799.99 - Stock: 2 unidades
+
+Es un equipo compacto y potente con procesador Intel Core i5-12500, 8GB de RAM y 256GB SSD.
+
+¿Te gustaría conocer más detalles sobre esta computadora o necesitas algo con características diferentes?"""
         
         elif "laptop" in user_input_lower or "portátil" in user_input_lower:
             return "Actualmente tenemos 3 modelos de laptops disponibles:\n\n1. **HP Pavilion 15** - $899.99 (5 unidades)\n2. **HP ProBook 450** - $1,299.99 (3 unidades)\n3. **MacBook Air M2** - $1,499.99 (1 unidad)\n\n¿Cuál te gustaría conocer con más detalle?"
@@ -81,7 +84,11 @@ class ChatService:
             self.llm = MockChatModel()
         else:
             from langchain_openai import ChatOpenAI
-            self.llm = ChatOpenAI(temperature=0.7, model="gpt-3.5-turbo")
+            self.llm = ChatOpenAI(
+                temperature=0.7, 
+                model="gpt-4o",
+                api_key=os.getenv("OPENAI_API_KEY")
+            )
     
     def create_session(self, session_id: Optional[str] = None) -> str:
         if not session_id:
@@ -92,10 +99,34 @@ class ChatService:
             messages=[
                 ChatMessage(
                     role=MessageRole.SYSTEM,
-                    content="""Eres un asistente virtual de Makers Tech, una tienda de tecnología.
-                    Tu trabajo es ayudar a los clientes con información sobre productos, precios y disponibilidad.
-                    Siempre sé amable, profesional y responde en español.
-                    Cuando menciones productos, incluye precio y stock disponible."""
+                    content="""Eres un asistente virtual experto de Makers Tech, una tienda especializada en tecnología.
+
+INSTRUCCIONES:
+- Responde SIEMPRE en español de forma amable y profesional
+- Ayuda a clientes con consultas sobre inventario, características técnicas y precios
+- Incluye precios y stock disponible cuando menciones productos
+- Ofrece recomendaciones basadas en las necesidades del cliente
+- Si no tienes información específica, usa el contexto del inventario proporcionado
+- Mantén conversaciones naturales y útiles para ayudar en decisiones de compra
+
+IMPORTANTE AL MOSTRAR PRODUCTOS:
+- Cuando te pregunten por productos disponibles, NO envíes toda la información en un solo mensaje largo
+- Separa la información de cada producto en párrafos distintos, como si fueras una persona escribiendo
+- Para cada producto menciona: nombre/modelo, marca, precio y stock disponible
+- Después de mostrar los productos, pregunta si el cliente quiere más detalles sobre alguno específico
+- Sé conversacional y natural, no como un catálogo
+
+EJEMPLO DE RESPUESTA PARA COMPUTADORAS:
+"Claro! Te muestro las computadoras que tenemos disponibles:
+
+Tenemos la **Dell OptiPlex 3000**, una excelente computadora de escritorio para oficina.
+Precio: $799.99 - Stock: 2 unidades
+
+También contamos con workstations y otros modelos según tus necesidades.
+
+¿Te gustaría conocer más detalles sobre alguna de estas opciones?"
+
+OBJETIVO: Ser el mejor vendedor virtual que ayude a los clientes a encontrar la tecnología perfecta para sus necesidades."""
                 )
             ]
         )
@@ -159,18 +190,57 @@ class ChatService:
         context_parts = []
         message_lower = message.lower()
         
+        # Detectar consultas sobre categorías específicas
+        if any(word in message_lower for word in ["computadora", "computadoras", "pc", "desktop"]):
+            computers = await inventory_service.get_products_by_category(ProductCategory.COMPUTADORAS)
+            if computers:
+                products_info = []
+                for product in computers:
+                    specs = json.loads(product.specifications) if product.specifications else {}
+                    products_info.append(
+                        f"- {product.name} (Marca: {product.brand}, Modelo: {product.model})\n"
+                        f"  Precio: ${product.price} | Stock: {product.stock} unidades\n"
+                        f"  Descripción: {product.description}\n"
+                        f"  Especificaciones: {', '.join([f'{k}: {v}' for k, v in specs.items()])}"
+                    )
+                context_parts.append("COMPUTADORAS DISPONIBLES:\n" + "\n\n".join(products_info))
+        
+        elif any(word in message_lower for word in ["laptop", "portátil", "notebook"]):
+            laptops = await inventory_service.get_products_by_category(ProductCategory.LAPTOPS)
+            if laptops:
+                products_info = []
+                for product in laptops:
+                    products_info.append(
+                        f"- {product.name} ({product.brand}): ${product.price}, Stock: {product.stock}"
+                    )
+                context_parts.append("LAPTOPS DISPONIBLES:\n" + "\n".join(products_info))
+        
+        elif any(word in message_lower for word in ["tablet", "tablets", "ipad"]):
+            tablets = await inventory_service.get_products_by_category(ProductCategory.TABLETS)
+            if tablets:
+                products_info = []
+                for product in tablets:
+                    products_info.append(
+                        f"- {product.name} ({product.brand}): ${product.price}, Stock: {product.stock}"
+                    )
+                context_parts.append("TABLETS DISPONIBLES:\n" + "\n".join(products_info))
+        
+        # Búsqueda general si no es categoría específica
+        else:
+            search_results = await inventory_service.search_products(message)
+            if search_results:
+                products_info = []
+                for product in search_results[:5]:
+                    products_info.append(
+                        f"- {product.name} ({product.brand}): ${product.price}, Stock: {product.stock}"
+                    )
+                context_parts.append("Productos relevantes encontrados:\n" + "\n".join(products_info))
+        
+        # Resumen de inventario general
         if any(word in message_lower for word in ["inventario", "stock", "disponible", "cuántos", "cuántas"]):
             summary = await inventory_service.get_inventory_summary()
-            context_parts.append(f"Resumen de inventario: {json.dumps(summary, ensure_ascii=False)}")
-        
-        search_results = await inventory_service.search_products(message)
-        if search_results:
-            products_info = []
-            for product in search_results[:5]:
-                products_info.append(
-                    f"- {product.name} ({product.brand}): ${product.price}, Stock: {product.stock}"
-                )
-            context_parts.append("Productos relevantes encontrados:\n" + "\n".join(products_info))
+            if not context_parts:  # Solo agregar si no hay contexto específico
+                context_parts.append(f"Resumen de inventario: {json.dumps(summary, ensure_ascii=False)}")
         
         return "\n\n".join(context_parts)
     

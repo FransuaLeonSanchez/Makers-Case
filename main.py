@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 from config import settings
 from database import init_db, get_session
-from api import products_router, chat_router, websocket_endpoint
+from api import products_router, chat_router, recommendations_router, websocket_endpoint
 from services.inventory_service import InventoryService
 
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +42,7 @@ app.add_middleware(
 
 app.include_router(products_router)
 app.include_router(chat_router)
+app.include_router(recommendations_router)
 
 @app.get("/")
 async def root():
@@ -51,6 +52,7 @@ async def root():
         "endpoints": {
             "products": "/api/products",
             "chat": "/api/chat",
+            "recommendations": "/api/recommendations",
             "websocket": "/ws/{session_id}",
             "docs": "/docs"
         }

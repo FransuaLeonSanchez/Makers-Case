@@ -32,6 +32,11 @@ async def get_inventory_summary(session: AsyncSession = Depends(get_session)):
     inventory_service = InventoryService(session)
     return await inventory_service.get_inventory_summary()
 
+@router.get("/inventory/summary")
+async def get_inventory_summary_alt(session: AsyncSession = Depends(get_session)):
+    inventory_service = InventoryService(session)
+    return await inventory_service.get_inventory_summary()
+
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, session: AsyncSession = Depends(get_session)):
     inventory_service = InventoryService(session)
