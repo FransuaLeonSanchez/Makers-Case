@@ -126,44 +126,7 @@ export default function TechnologiesInfo() {
     }
   ];
 
-  const learningPath = [
-    {
-      step: 1,
-      title: "HTML & CSS Básico",
-      description: "Aprende la estructura y diseño de páginas web",
-      time: "2-3 semanas"
-    },
-    {
-      step: 2,
-      title: "JavaScript Fundamentals",
-      description: "Entiende la programación básica y lógica",
-      time: "1-2 meses"
-    },
-    {
-      step: 3,
-      title: "React Basics",
-      description: "Aprende componentes y estado",
-      time: "1 mes"
-    },
-    {
-      step: 4,
-      title: "Python para Backend",
-      description: "Sintaxis básica y conceptos de programación",
-      time: "1-2 meses"
-    },
-    {
-      step: 5,
-      title: "Bases de Datos SQL",
-      description: "Cómo guardar y consultar información",
-      time: "2-3 semanas"
-    },
-    {
-      step: 6,
-      title: "APIs REST",
-      description: "Cómo frontend y backend se comunican",
-      time: "2 semanas"
-    }
-  ];
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -268,79 +231,7 @@ export default function TechnologiesInfo() {
         </motion.div>
       ))}
 
-      {/* Ruta de Aprendizaje */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-6"
-      >
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          📚 Ruta de Aprendizaje Recomendada
-        </h2>
-        <p className="text-center text-gray-600 mb-6">
-          Si quieres aprender a crear algo similar, este es el camino sugerido:
-        </p>
-        
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {learningPath.map((item) => (
-            <motion.div
-              key={item.step}
-              whileHover={{ scale: 1.05 }}
-              className="bg-white rounded-lg p-4 shadow-md"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
-                  {item.step}
-                </div>
-                <h3 className="font-semibold text-gray-900">{item.title}</h3>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-              <p className="text-xs text-blue-600 font-semibold">
-                ⏱️ Tiempo estimado: {item.time}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
 
-      {/* Tips para Principiantes */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9 }}
-        className="bg-yellow-50 rounded-lg p-6"
-      >
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          💡 Tips para Principiantes
-        </h2>
-        <ul className="space-y-2">
-          <li className="flex items-start gap-2">
-            <span className="text-yellow-600 mt-1">•</span>
-            <span className="text-gray-700">
-              <strong>Empieza con lo básico:</strong> No intentes aprender todo de una vez. Domina HTML/CSS antes de saltar a React.
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-yellow-600 mt-1">•</span>
-            <span className="text-gray-700">
-              <strong>Practica mucho:</strong> La programación se aprende haciendo. Crea proyectos pequeños para practicar.
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-yellow-600 mt-1">•</span>
-            <span className="text-gray-700">
-              <strong>No te frustres con los errores:</strong> Los errores son normales y son la mejor forma de aprender.
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-yellow-600 mt-1">•</span>
-            <span className="text-gray-700">
-              <strong>Usa la documentación:</strong> Cada tecnología tiene documentación oficial. Aprende a leerla.
-            </span>
-          </li>
-        </ul>
-      </motion.div>
     </div>
   );
 } 
