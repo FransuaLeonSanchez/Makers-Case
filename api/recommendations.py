@@ -1,160 +1,141 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from database import get_session
-from services.inventory_service import InventoryService
+from services.recommendation_service import RecommendationService
 from models.product import ProductResponse, ProductCategory
-import random
+from models.user_interaction import InteractionRequest
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
-class UserPreferences(BaseModel):
-    budget_max: Optional[float] = None
-    budget_min: Optional[float] = 0
-    preferred_brands: List[str] = []
-    categories_of_interest: List[ProductCategory] = []
-    use_case: Optional[str] = None  # "gaming", "office", "creativity", "general"
+class RecommendedProduct(ProductResponse):
+    score: float
+    recommendation: str
+    reasons: List[str]
 
-class RecommendationResponse(BaseModel):
-    highly_recommended: List[ProductResponse]
-    recommended: List[ProductResponse]
-    not_recommended: List[ProductResponse]
-    reasoning: Dict[str, str]
-
-@router.post("/", response_model=RecommendationResponse)
+@router.get("/")
 async def get_recommendations(
-    preferences: UserPreferences,
     session: AsyncSession = Depends(get_session)
 ):
-    inventory_service = InventoryService(session)
-    all_products = await inventory_service.get_all_products()
+    """
+    Obtiene recomendaciones personalizadas basadas en el comportamiento global del usuario.
+    Las recomendaciones se adaptan automáticamente según todas las interacciones previas
+    con el chatbot y el sistema.
+    """
+    recommendation_service = RecommendationService(session)
     
-    if not all_products:
-        raise HTTPException(status_code=404, detail="No hay productos disponibles")
-    
-    highly_recommended = []
-    recommended = []
-    not_recommended = []
-    reasoning = {}
-    
-    for product in all_products:
-        score = 0
-        reasons = []
+    try:
+        recommendations = await recommendation_service.get_personalized_recommendations()
         
-        # Scoring por presupuesto
-        if preferences.budget_max:
-            if product.price <= preferences.budget_max:
-                if product.price >= preferences.budget_min:
-                    score += 30
-                    reasons.append("Dentro del presupuesto")
-                else:
-                    score += 10
-                    reasons.append("Por debajo del presupuesto mínimo")
-            else:
-                score -= 20
-                reasons.append("Excede el presupuesto")
+        # Formatear respuesta con scoring y razones
+        response = {
+            "highly_recommended": [],
+            "recommended": [],
+            "other_suggestions": []
+        }
         
-        # Scoring por marca preferida
-        if preferences.preferred_brands:
-            if product.brand in preferences.preferred_brands:
-                score += 25
-                reasons.append(f"Marca preferida: {product.brand}")
-            else:
-                score -= 5
-                reasons.append("Marca no preferida")
+        for category, products in recommendations.items():
+            for product in products:
+                recommended_product = {
+                    **product.__dict__,
+                    "score": 85 if category == "highly_recommended" else 65 if category == "recommended" else 40,
+                    "recommendation": category.upper().replace("_", " "),
+                    "reasons": _get_recommendation_reasons(product, category)
+                }
+                response[category].append(recommended_product)
         
-        # Scoring por categoría de interés
-        if preferences.categories_of_interest:
-            if product.category in preferences.categories_of_interest:
-                score += 20
-                reasons.append(f"Categoría de interés: {product.category.value}")
-            else:
-                score -= 10
-                reasons.append("Categoría no prioritaria")
+        await session.commit()
+        return response
         
-        # Scoring por caso de uso
-        use_case_bonus = _get_use_case_score(product, preferences.use_case)
-        score += use_case_bonus
-        if use_case_bonus > 0:
-            reasons.append(f"Adecuado para: {preferences.use_case}")
-        
-        # Scoring por disponibilidad
-        if product.stock > 0:
-            score += 15
-            reasons.append("Disponible en stock")
-        else:
-            score -= 30
-            reasons.append("Sin stock")
-        
-        # Categorización
-        if score >= 50:
-            highly_recommended.append(product)
-            reasoning[str(product.id)] = f"Altamente recomendado: {', '.join(reasons)}"
-        elif score >= 20:
-            recommended.append(product)
-            reasoning[str(product.id)] = f"Recomendado: {', '.join(reasons)}"
-        else:
-            not_recommended.append(product)
-            reasoning[str(product.id)] = f"No recomendado: {', '.join(reasons)}"
-    
-    # Ordenar por precio (más recomendados primero)
-    highly_recommended.sort(key=lambda x: x.price)
-    recommended.sort(key=lambda x: x.price)
-    not_recommended.sort(key=lambda x: x.price, reverse=True)
-    
-    return RecommendationResponse(
-        highly_recommended=highly_recommended,
-        recommended=recommended,
-        not_recommended=not_recommended,
-        reasoning=reasoning
-    )
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al obtener recomendaciones: {str(e)}")
 
-def _get_use_case_score(product, use_case: str) -> int:
-    if not use_case:
-        return 0
+@router.post("/track-interaction")
+async def track_interaction(
+    interaction: InteractionRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """Registra una interacción del usuario con el sistema"""
+    recommendation_service = RecommendationService(session)
     
-    use_case_lower = use_case.lower()
-    product_name_lower = product.name.lower()
-    category = product.category.value.lower()
-    
-    # Gaming
-    if "gaming" in use_case_lower:
-        if any(term in product_name_lower for term in ["gaming", "rtx", "gtx", "ryzen", "intel"]):
-            return 15
-        if category in ["laptops", "computadoras"]:
-            return 10
-        return 0
-    
-    # Office/Trabajo
-    elif "office" in use_case_lower or "trabajo" in use_case_lower:
-        if any(term in product_name_lower for term in ["pro", "business", "office"]):
-            return 15
-        if category in ["laptops", "computadoras", "monitores", "perifericos"]:
-            return 10
-        return 5
-    
-    # Creatividad
-    elif "creativity" in use_case_lower or "creativ" in use_case_lower:
-        if "pro" in product_name_lower or "studio" in product_name_lower:
-            return 15
-        if category in ["laptops", "computadoras", "tablets", "monitores"]:
-            return 10
-        return 5
-    
-    # General
-    elif "general" in use_case_lower:
-        return 5
-    
-    return 0
+    try:
+        await recommendation_service.track_interaction(
+            interaction_type=interaction.interaction_type,
+            product_id=interaction.product_id,
+            category=interaction.category_viewed,
+            search_query=interaction.search_query
+        )
+        await session.commit()
+        return {"status": "success", "message": "Interacción registrada"}
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al registrar interacción: {str(e)}")
 
-@router.get("/use-cases")
-async def get_available_use_cases():
+@router.get("/related/{product_id}")
+async def get_related_products(
+    product_id: int,
+    limit: int = Query(6, ge=1, le=20),
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene productos relacionados a uno específico"""
+    recommendation_service = RecommendationService(session)
+    
+    try:
+        related_products = await recommendation_service.get_related_products(
+            product_id=product_id,
+            limit=limit
+        )
+        return related_products
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener productos relacionados: {str(e)}")
+
+@router.get("/user-preferences")
+async def get_user_preferences(
+    session: AsyncSession = Depends(get_session)
+):
+    """Obtiene las preferencias globales aprendidas del usuario"""
+    recommendation_service = RecommendationService(session)
+    
+    preferences = await recommendation_service.get_user_preferences()
+    
+    if not preferences:
+        return {
+            "preferred_categories": [],
+            "preferred_brands": [],
+            "price_range": {"min": 0, "max": 50000},
+            "interaction_count": 0
+        }
+    
     return {
-        "use_cases": [
-            {"id": "gaming", "name": "Gaming y Entretenimiento"},
-            {"id": "office", "name": "Oficina y Trabajo"},
-            {"id": "creativity", "name": "Creatividad y Diseño"},
-            {"id": "general", "name": "Uso General"}
-        ]
-    } 
+        "preferred_categories": preferences["preferred_categories"],
+        "preferred_brands": preferences["preferred_brands"],
+        "price_range": {
+            "min": preferences["price_range_min"],
+            "max": preferences["price_range_max"]
+        },
+        "interaction_count": preferences["interaction_count"]
+    }
+
+def _get_recommendation_reasons(product, category: str) -> List[str]:
+    """Genera razones para la recomendación"""
+    reasons = []
+    
+    if category == "highly_recommended":
+        reasons.append("De la categoría que buscaste más recientemente")
+        if product.stock > 5:
+            reasons.append("Disponibilidad inmediata")
+        reasons.append("Producto destacado en su categoría")
+    elif category == "recommended":
+        reasons.append("De tu penúltima categoría buscada")
+        if product.price < 1000:
+            reasons.append("Precio accesible")
+        if product.stock > 10:
+            reasons.append("Amplio stock disponible")
+    else:
+        reasons.append("Otras opciones que podrían interesarte")
+        if hasattr(product, 'brand') and product.brand in ["Apple", "Samsung", "HP", "Dell"]:
+            reasons.append("Marca reconocida")
+    
+    return reasons 

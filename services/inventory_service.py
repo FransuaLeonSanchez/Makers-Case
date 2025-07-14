@@ -352,6 +352,240 @@ class InventoryService:
                     "microfono": "Dual omnidireccional",
                     "conectividad": "USB 3.0"
                 })
+            },
+            # Nuevos smartphones
+            {
+                "name": "Samsung Galaxy A54 5G",
+                "brand": "Samsung",
+                "model": "Galaxy A54 5G",
+                "category": ProductCategory.CELULARES,
+                "price": 449.99,
+                "stock": 15,
+                "description": "Smartphone 5G con excelente relación calidad-precio",
+                "specifications": json.dumps({
+                    "procesador": "Exynos 1380",
+                    "ram": "8GB",
+                    "almacenamiento": "256GB",
+                    "pantalla": "6.4 pulgadas Super AMOLED",
+                    "camara": "50MP + 12MP + 5MP",
+                    "bateria": "5000 mAh"
+                })
+            },
+            {
+                "name": "Xiaomi Redmi Note 12 Pro",
+                "brand": "Xiaomi",
+                "model": "Redmi Note 12 Pro",
+                "category": ProductCategory.CELULARES,
+                "price": 299.99,
+                "stock": 20,
+                "description": "Smartphone con cámara de 108MP y carga rápida",
+                "specifications": json.dumps({
+                    "procesador": "MediaTek Dimensity 1080",
+                    "ram": "8GB",
+                    "almacenamiento": "256GB",
+                    "pantalla": "6.67 pulgadas AMOLED",
+                    "camara": "108MP + 8MP + 2MP",
+                    "bateria": "5000 mAh, carga 67W"
+                })
+            },
+            {
+                "name": "Google Pixel 7a",
+                "brand": "Google",
+                "model": "Pixel 7a",
+                "category": ProductCategory.CELULARES,
+                "price": 499.99,
+                "stock": 8,
+                "description": "Smartphone con la mejor cámara de su categoría",
+                "specifications": json.dumps({
+                    "procesador": "Google Tensor G2",
+                    "ram": "8GB",
+                    "almacenamiento": "128GB",
+                    "pantalla": "6.1 pulgadas OLED",
+                    "camara": "64MP + 13MP ultra angular",
+                    "bateria": "4385 mAh"
+                })
+            },
+            {
+                "name": "OnePlus Nord 3",
+                "brand": "OnePlus",
+                "model": "Nord 3",
+                "category": ProductCategory.CELULARES,
+                "price": 599.99,
+                "stock": 10,
+                "description": "Smartphone potente con carga súper rápida",
+                "specifications": json.dumps({
+                    "procesador": "MediaTek Dimensity 9000",
+                    "ram": "16GB",
+                    "almacenamiento": "256GB",
+                    "pantalla": "6.74 pulgadas Fluid AMOLED",
+                    "camara": "50MP + 8MP + 2MP",
+                    "bateria": "5000 mAh, carga 80W"
+                })
+            },
+            # Más laptops
+            {
+                "name": "Lenovo ThinkPad X1 Carbon",
+                "brand": "Lenovo",
+                "model": "X1 Carbon Gen 11",
+                "category": ProductCategory.LAPTOPS,
+                "price": 1799.99,
+                "stock": 4,
+                "description": "Ultrabook empresarial premium con durabilidad militar",
+                "specifications": json.dumps({
+                    "procesador": "Intel Core i7-1365U",
+                    "ram": "16GB LPDDR5",
+                    "almacenamiento": "512GB SSD",
+                    "pantalla": "14 pulgadas WUXGA",
+                    "peso": "1.12 kg"
+                })
+            },
+            {
+                "name": "ASUS ROG Strix G15",
+                "brand": "ASUS",
+                "model": "ROG Strix G15",
+                "category": ProductCategory.LAPTOPS,
+                "price": 1499.99,
+                "stock": 6,
+                "description": "Laptop gaming de alto rendimiento",
+                "specifications": json.dumps({
+                    "procesador": "AMD Ryzen 7 6800H",
+                    "ram": "16GB DDR5",
+                    "almacenamiento": "1TB SSD",
+                    "pantalla": "15.6 pulgadas 165Hz",
+                    "grafica": "NVIDIA RTX 3060"
+                })
+            },
+            # Más tablets
+            {
+                "name": "Microsoft Surface Pro 9",
+                "brand": "Microsoft",
+                "model": "Surface Pro 9",
+                "category": ProductCategory.TABLETS,
+                "price": 999.99,
+                "stock": 5,
+                "description": "Tablet 2 en 1 con Windows 11",
+                "specifications": json.dumps({
+                    "procesador": "Intel Core i5-1235U",
+                    "ram": "8GB",
+                    "almacenamiento": "256GB SSD",
+                    "pantalla": "13 pulgadas PixelSense",
+                    "sistema_operativo": "Windows 11"
+                })
+            },
+            {
+                "name": "Amazon Fire HD 10",
+                "brand": "Amazon",
+                "model": "Fire HD 10",
+                "category": ProductCategory.TABLETS,
+                "price": 149.99,
+                "stock": 25,
+                "description": "Tablet económica ideal para entretenimiento",
+                "specifications": json.dumps({
+                    "procesador": "Octa-core 2.0 GHz",
+                    "ram": "3GB",
+                    "almacenamiento": "32GB",
+                    "pantalla": "10.1 pulgadas Full HD",
+                    "bateria": "12 horas"
+                })
+            },
+            # Más computadoras
+            {
+                "name": "iMac 24 M3",
+                "brand": "Apple",
+                "model": "iMac 24 2023",
+                "category": ProductCategory.COMPUTADORAS,
+                "price": 1599.99,
+                "stock": 3,
+                "description": "All-in-one con chip M3 y pantalla Retina 4.5K",
+                "specifications": json.dumps({
+                    "procesador": "Apple M3",
+                    "ram": "8GB",
+                    "almacenamiento": "256GB SSD",
+                    "pantalla": "24 pulgadas 4.5K Retina",
+                    "puertos": "2x Thunderbolt, 2x USB 3"
+                })
+            },
+            {
+                "name": "HP Elite Tower 800 G9",
+                "brand": "HP",
+                "model": "Elite Tower 800 G9",
+                "category": ProductCategory.COMPUTADORAS,
+                "price": 1099.99,
+                "stock": 4,
+                "description": "Workstation empresarial de alto rendimiento",
+                "specifications": json.dumps({
+                    "procesador": "Intel Core i7-13700",
+                    "ram": "32GB DDR5",
+                    "almacenamiento": "512GB SSD + 1TB HDD",
+                    "grafica": "Intel UHD Graphics 770",
+                    "sistema_operativo": "Windows 11 Pro"
+                })
+            },
+            # Más monitores
+            {
+                "name": "LG UltraGear 32GN650",
+                "brand": "LG",
+                "model": "32GN650-B",
+                "category": ProductCategory.MONITORES,
+                "price": 399.99,
+                "stock": 10,
+                "description": "Monitor gaming QHD con 165Hz",
+                "specifications": json.dumps({
+                    "tamaño": "32 pulgadas",
+                    "resolucion": "2560 x 1440 (QHD)",
+                    "tasa_refresco": "165Hz",
+                    "tiempo_respuesta": "1ms",
+                    "tecnologia": "AMD FreeSync Premium"
+                })
+            },
+            {
+                "name": "BenQ PD2705U",
+                "brand": "BenQ",
+                "model": "PD2705U",
+                "category": ProductCategory.MONITORES,
+                "price": 549.99,
+                "stock": 7,
+                "description": "Monitor para diseñadores con precisión de color",
+                "specifications": json.dumps({
+                    "tamaño": "27 pulgadas",
+                    "resolucion": "3840 x 2160 (4K)",
+                    "cobertura_color": "100% sRGB, 95% DCI-P3",
+                    "panel": "IPS",
+                    "puertos": "USB-C 65W, HDMI, DisplayPort"
+                })
+            },
+            # Más periféricos
+            {
+                "name": "Razer DeathAdder V3 Pro",
+                "brand": "Razer",
+                "model": "DeathAdder V3 Pro",
+                "category": ProductCategory.PERIFERICOS,
+                "price": 149.99,
+                "stock": 18,
+                "description": "Mouse gaming inalámbrico ultraligero",
+                "specifications": json.dumps({
+                    "peso": "59g",
+                    "sensor": "Focus Pro 30K",
+                    "dpi": "30000 DPI máximo",
+                    "bateria": "90 horas",
+                    "switches": "Ópticos Gen 3"
+                })
+            },
+            {
+                "name": "Corsair K70 RGB TKL",
+                "brand": "Corsair",
+                "model": "K70 RGB TKL",
+                "category": ProductCategory.PERIFERICOS,
+                "price": 139.99,
+                "stock": 14,
+                "description": "Teclado mecánico TKL para gaming",
+                "specifications": json.dumps({
+                    "switches": "Cherry MX Red",
+                    "retroiluminacion": "RGB por tecla",
+                    "construccion": "Marco de aluminio",
+                    "conectividad": "USB-C desmontable",
+                    "polling_rate": "8000Hz"
+                })
             }
         ]
         

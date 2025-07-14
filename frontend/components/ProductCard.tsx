@@ -6,11 +6,11 @@ import { Product, RecommendedProduct } from '@/lib/api';
 
 interface ProductCardProps {
   product: Product | RecommendedProduct;
-  recommendation?: 'HIGHLY_RECOMMENDED' | 'RECOMMENDED' | 'NOT_RECOMMENDED';
+  recommendation?: string;
 }
 
 export default function ProductCard({ product, recommendation }: ProductCardProps) {
-  const recommendationStyles = {
+  const recommendationStyles: Record<string, { border: string; badge: string; text: string }> = {
     HIGHLY_RECOMMENDED: {
       border: 'border-green-500',
       badge: 'bg-green-500',
@@ -21,14 +21,19 @@ export default function ProductCard({ product, recommendation }: ProductCardProp
       badge: 'bg-blue-500',
       text: 'Recomendado',
     },
-    NOT_RECOMMENDED: {
+    'OTHER SUGGESTIONS': {
       border: 'border-gray-300',
       badge: 'bg-gray-400',
-      text: 'No Recomendado',
+      text: 'Otras Sugerencias',
+    },
+    OTHER_SUGGESTIONS: {
+      border: 'border-gray-300',
+      badge: 'bg-gray-400',
+      text: 'Otras Sugerencias',
     },
   };
 
-  const style = recommendation ? recommendationStyles[recommendation] : null;
+  const style = recommendation && recommendationStyles[recommendation] ? recommendationStyles[recommendation] : null;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -46,9 +51,9 @@ export default function ProductCard({ product, recommendation }: ProductCardProp
         style ? `border-2 ${style.border}` : ''
       }`}
     >
-      {recommendation && (
-        <div className={`absolute -top-3 left-4 ${style!.badge} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
-          {style!.text}
+      {recommendation && style && (
+        <div className={`absolute -top-3 left-4 ${style.badge} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
+          {style.text}
         </div>
       )}
 

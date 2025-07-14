@@ -1,9 +1,9 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from config import settings
-from database import init_db, get_session
+from database import init_db, get_session, AsyncSession
 from api import products_router, chat_router, recommendations_router, websocket_endpoint
 from services.inventory_service import InventoryService
 
@@ -62,9 +62,9 @@ async def root():
 async def health_check():
     return {"status": "healthy", "service": "makers-tech-chatbot"}
 
-@app.websocket("/ws/{session_id}")
-async def websocket_route(websocket: WebSocket, session_id: str):
-    await websocket_endpoint(websocket, session_id)
+@app.websocket("/ws")
+async def websocket_route(websocket: WebSocket, session: AsyncSession = Depends(get_session)):
+    await websocket_endpoint(websocket, session)
 
 if __name__ == "__main__":
     import uvicorn

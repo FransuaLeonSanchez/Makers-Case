@@ -13,6 +13,8 @@ export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    if (!url) return;
+    
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -26,11 +28,17 @@ export function useWebSocket(url: string) {
       
       if (data.type === 'typing') {
         setIsTyping(true);
+      } else if (data.type === 'welcome') {
+        setMessages((prev) => [...prev, {
+          type: 'response',
+          content: data.message,
+          timestamp: new Date().toISOString(),
+        }]);
       } else if (data.type === 'response') {
         setIsTyping(false);
         setMessages((prev) => [...prev, {
           type: 'response',
-          content: data.response,
+          content: data.message || data.response,
           timestamp: new Date().toISOString(),
         }]);
       } else if (data.type === 'error') {
@@ -67,10 +75,13 @@ export function useWebSocket(url: string) {
       }]);
       
       wsRef.current.send(JSON.stringify({
-        message,
-        session_id: sessionStorage.getItem('chatSessionId') || undefined,
+        message
       }));
     }
+  }, []);
+
+  const clearMessages = useCallback(() => {
+    setMessages([]);
   }, []);
 
   return {
@@ -78,5 +89,6 @@ export function useWebSocket(url: string) {
     sendMessage,
     isConnected,
     isTyping,
+    clearMessages,
   };
 } 

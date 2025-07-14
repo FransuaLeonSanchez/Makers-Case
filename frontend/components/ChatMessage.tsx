@@ -38,8 +38,8 @@ export default function ChatMessage({ message, isUser, timestamp }: ChatMessageP
         <div
           className={`px-4 py-3 rounded-2xl ${
             isUser
-              ? 'bg-blue-100 text-gray-800'
-              : 'bg-gray-100 text-gray-800'
+              ? 'bg-blue-100 text-gray-900'
+              : 'bg-gray-100 text-gray-900'
           } shadow-sm`}
         >
           {isUser ? (

@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from models.product import Base
+from models.user_interaction import UserInteraction, UserPreference
+from models.chat import ChatHistory
 from config import settings
 from typing import AsyncGenerator
 
