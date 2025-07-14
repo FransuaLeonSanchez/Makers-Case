@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Enum as SQLEnum, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, Enum as SQLEnum, Text, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from enum import Enum
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -29,6 +30,19 @@ class Product(Base):
     description = Column(Text)
     specifications = Column(Text)
     is_active = Column(Boolean, default=True)
+
+class Sale(Base):
+    __tablename__ = "sales"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    product_name = Column(String)
+    product_brand = Column(String)
+    price = Column(Float)
+    quantity = Column(Integer, default=1)
+    customer_info = Column(String)  # Puede ser email o teléfono
+    timestamp = Column(DateTime, default=datetime.now)
+    status = Column(String, default="pending")  # pending, confirmed, cancelled
 
 class ProductCreate(BaseModel):
     name: str

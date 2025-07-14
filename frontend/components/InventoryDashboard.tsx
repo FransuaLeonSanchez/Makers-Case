@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaBox, FaChartPie, FaDollarSign, FaWarehouse } from 'react-icons/fa';
+import { FaBox, FaChartPie, FaDollarSign, FaWarehouse, FaShoppingCart, FaSync } from 'react-icons/fa';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { productAPI } from '@/lib/api';
 
 export default function InventoryDashboard() {
   const [inventoryData, setInventoryData] = useState<any>(null);
   const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [recentSales, setRecentSales] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +27,14 @@ export default function InventoryDashboard() {
       const preferences = await preferencesResponse.json();
       console.log('User preferences:', preferences);
       
+      console.log('Fetching recent sales...');
+      const salesResponse = await fetch('http://localhost:8000/api/products/sales/recent');
+      const sales = await salesResponse.json();
+      console.log('Recent sales:', sales);
+      
       setInventoryData(inventory);
       setUserPreferences(preferences);
+      setRecentSales(sales);
     } catch (error) {
       console.error('Error fetching data:', error);
       // Set some default data to avoid empty dashboard
@@ -38,8 +45,19 @@ export default function InventoryDashboard() {
         by_category: [],
         low_stock_products: []
       });
+      setRecentSales({ sales: [], total: 0 });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSales = async () => {
+    try {
+      const salesResponse = await fetch('http://localhost:8000/api/products/sales/recent');
+      const sales = await salesResponse.json();
+      setRecentSales(sales);
+    } catch (error) {
+      console.error('Error fetching sales:', error);
     }
   };
 
@@ -290,6 +308,69 @@ export default function InventoryDashboard() {
             <p className="text-gray-900 text-center py-4">No hay productos con stock bajo</p>
           )}
         </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="mt-6 bg-white rounded-lg shadow-md p-6"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Ventas Recientes</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchSales}
+              className="p-2 text-gray-600 hover:text-green-600 transition-colors"
+              title="Actualizar ventas"
+            >
+              <FaSync className="text-lg" />
+            </button>
+            <FaShoppingCart className="text-green-600 text-xl" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          {recentSales?.sales?.map((sale: any) => (
+            <div key={sale.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{sale.product_name}</p>
+                <p className="text-sm text-gray-600">{sale.product_brand}</p>
+                <p className="text-xs text-gray-500">
+                  {new Date(sale.timestamp).toLocaleString('es-MX', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-green-600 font-semibold">${sale.price.toLocaleString('es-MX')}</p>
+                <p className="text-sm text-gray-600">Cantidad: {sale.quantity}</p>
+                <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                  sale.status === 'confirmed' ? 'bg-green-200 text-green-800' :
+                  sale.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {sale.status === 'confirmed' ? 'Confirmada' :
+                   sale.status === 'pending' ? 'Pendiente' :
+                   'Cancelada'}
+                </span>
+              </div>
+            </div>
+          ))}
+          {(!recentSales?.sales || recentSales.sales.length === 0) && (
+            <p className="text-gray-500 text-center py-4">No hay ventas recientes</p>
+          )}
+        </div>
+        {recentSales?.total > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Total de ventas mostradas: <span className="font-semibold">{recentSales.total}</span>
+            </p>
+          </div>
+        )}
       </motion.div>
     </div>
   );

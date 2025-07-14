@@ -7,6 +7,7 @@ import Chat from '@/components/Chat';
 import Recommendations from '@/components/Recommendations';
 import InventoryDashboard from '@/components/InventoryDashboard';
 import Products from '@/components/Products';
+import TechnologiesInfo from '@/components/TechnologiesInfo';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
@@ -63,6 +64,16 @@ export default function Home() {
                 } pb-1`}
               >
                 Métricas
+              </button>
+              <button
+                onClick={() => setActiveTab('technologies')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'technologies'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                } pb-1`}
+              >
+                Tecnologías
               </button>
             </div>
           </div>
@@ -186,6 +197,7 @@ export default function Home() {
         {activeTab === 'recommendations' && <Recommendations />}
         {activeTab === 'products' && <Products />}
         {activeTab === 'metrics' && <InventoryDashboard />}
+        {activeTab === 'technologies' && <TechnologiesInfo />}
       </main>
 
       <Chat />

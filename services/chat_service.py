@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Any
 from models.chat import ChatMessage, MessageRole, ChatResponse, ChatHistory, MultiChatResponse
-from models.product import ProductCategory
+from models.product import ProductCategory, Product, Sale
 from services.inventory_service import InventoryService
 from services.recommendation_service import RecommendationService
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
@@ -128,6 +128,12 @@ INFORMACIÓN DE STOCK:
 - Si el stock es bajo (menos de 3), menciona que quedan pocas unidades
 - Si no hay stock, ofrece alternativas similares
 
+PROCESO DE COMPRA:
+- Cuando un cliente quiera comprar un producto, SIEMPRE pregunta: "¿Estás seguro que quieres comprar [PRODUCTO]?"
+- Solo después de recibir confirmación positiva, procede con los pasos de compra
+- Si el cliente confirma, solicita su información de contacto (email o teléfono)
+- Registra la venta internamente y confirma el pedido
+
 OBJETIVO: Ser un vendedor amigable y eficiente que ayuda con respuestas cortas y claras."""
         
         if use_mock:
@@ -140,6 +146,83 @@ OBJETIVO: Ser un vendedor amigable y eficiente que ayuda con respuestas cortas y
                 api_key=os.getenv("OPENAI_API_KEY")
             )
     
+    async def _track_purchase_intent(
+        self,
+        message: str,
+        response_text: str,
+        db_session: Optional[AsyncSession] = None
+    ):
+        """Detecta y registra ventas cuando se confirma una compra"""
+        message_lower = message.lower()
+        
+        # Detectar confirmación de compra
+        confirmation_words = ["sí", "si", "claro", "ok", "confirmo", "acepto", "quiero", "dale", "yes"]
+        is_confirmation = any(word in message_lower for word in confirmation_words)
+        
+        # Verificar si en la respuesta se está pidiendo confirmación
+        asking_confirmation = "estás seguro" in response_text.lower()
+        
+        # Si el usuario está confirmando Y el bot NO está preguntando (es decir, ya confirmó antes)
+        if is_confirmation and not asking_confirmation and db_session:
+            # Obtener últimos mensajes para encontrar el producto mencionado
+            result = await db_session.execute(
+                select(ChatHistory)
+                .order_by(ChatHistory.timestamp.desc())
+                .limit(10)
+            )
+            recent_messages = result.scalars().all()
+            
+            # Buscar qué producto se mencionó recientemente
+            product_found = None
+            for msg in recent_messages:
+                if msg.role == "assistant" and "estás seguro" in msg.content.lower():
+                    # Buscar el producto en el mensaje de confirmación
+                    msg_lower = msg.content.lower()
+                    
+                    # Mapa de productos mejorado
+                    products_map = {
+                        "hp pavilion 15": ("Laptop HP Pavilion 15", "HP", 899.99),
+                        "hp pavilion": ("Laptop HP Pavilion 15", "HP", 899.99),
+                        "hp probook": ("Laptop HP ProBook 450", "HP", 1299.99),
+                        "macbook air": ("MacBook Air M2", "Apple", 1499.99),
+                        "macbook": ("MacBook Air M2", "Apple", 1499.99),
+                        "asus zenbook": ("ASUS ZenBook 14 OLED", "ASUS", 1099.99),
+                        "lenovo thinkpad": ("Lenovo ThinkPad X1 Carbon Gen 11", "Lenovo", 1799.99),
+                        "thinkpad": ("Lenovo ThinkPad X1 Carbon Gen 11", "Lenovo", 1799.99),
+                        "dell xps": ("Dell XPS 15", "Dell", 1799.99),
+                        "iphone 14": ("iPhone 14", "Apple", 899.99),
+                        "iphone 15": ("iPhone 15 Pro", "Apple", 1199.99),
+                        "iphone se": ("iPhone SE", "Apple", 499.99),
+                        "galaxy s23": ("Samsung Galaxy S23 Ultra", "Samsung", 1199.99),
+                        "pixel 8": ("Google Pixel 8 Pro", "Google", 899.99),
+                        "oneplus 12": ("OnePlus 12", "OnePlus", 799.99),
+                        "xiaomi 14": ("Xiaomi 14 Ultra", "Xiaomi", 999.99)
+                    }
+                    
+                    for pattern, (product_name, brand, price) in products_map.items():
+                        if pattern in msg_lower:
+                            product_found = (product_name, brand, price)
+                            break
+                    
+                    if product_found:
+                        break
+            
+            # Si encontramos el producto, registrar la venta
+            if product_found:
+                product_name, brand, price = product_found
+                sale = Sale(
+                    product_name=product_name,
+                    product_brand=brand,
+                    price=price,
+                    quantity=1,
+                    customer_info="Pendiente",  # Se actualizará cuando proporcione info
+                    timestamp=datetime.now(),
+                    status="pending"
+                )
+                db_session.add(sale)
+                await db_session.commit()
+                print(f"Venta registrada: {product_name} - ${price}")
+
     async def process_message(
         self, 
         message: str,
@@ -194,6 +277,9 @@ OBJETIVO: Ser un vendedor amigable y eficiente que ayuda con respuestas cortas y
         # Generar respuesta
         response = await self.llm.agenerate([messages])
         response_text = response.generations[0][0].text
+        
+        # Detectar y registrar posibles ventas
+        await self._track_purchase_intent(message, response_text, db_session)
         
         # Dividir la respuesta en múltiples mensajes si es necesario
         response_messages = self._split_response(response_text)
