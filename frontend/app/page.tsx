@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaRobot, FaChartLine, FaBoxes } from 'react-icons/fa';
+import { FaRobot, FaChartLine, FaBoxes, FaShoppingBag } from 'react-icons/fa';
 import Chat from '@/components/Chat';
 import Recommendations from '@/components/Recommendations';
 import InventoryDashboard from '@/components/InventoryDashboard';
+import Products from '@/components/Products';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
@@ -44,14 +45,24 @@ export default function Home() {
                 Recomendaciones
               </button>
               <button
-                onClick={() => setActiveTab('inventory')}
+                onClick={() => setActiveTab('products')}
                 className={`text-sm font-medium transition-colors ${
-                  activeTab === 'inventory'
+                  activeTab === 'products'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-600 hover:text-gray-900'
                 } pb-1`}
               >
-                Inventario
+                Productos
+              </button>
+              <button
+                onClick={() => setActiveTab('metrics')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'metrics'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                } pb-1`}
+              >
+                Métricas
               </button>
             </div>
           </div>
@@ -122,16 +133,16 @@ export default function Home() {
                 className="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition-shadow"
               >
                 <FaBoxes className="text-5xl text-purple-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Dashboard de Inventario</h3>
+                <h3 className="text-xl font-semibold mb-2">Dashboard de Métricas</h3>
                 <p className="text-gray-600">
-                  Visualiza métricas en tiempo real, stock disponible 
-                  y estadísticas detalladas del inventario.
+                  Visualiza estadísticas de uso, preferencias de usuarios
+                  y análisis detallados del comportamiento.
                 </p>
                 <button
-                  onClick={() => setActiveTab('inventory')}
+                  onClick={() => setActiveTab('metrics')}
                   className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Ver Dashboard →
+                  Ver Métricas →
                 </button>
               </motion.div>
             </div>
@@ -152,7 +163,7 @@ export default function Home() {
               </p>
               <div className="flex flex-wrap justify-center gap-8 text-sm">
                 <div>
-                  <div className="text-3xl font-bold">14+</div>
+                  <div className="text-3xl font-bold">29+</div>
                   <div>Productos</div>
                 </div>
                 <div>
@@ -173,7 +184,8 @@ export default function Home() {
         )}
 
         {activeTab === 'recommendations' && <Recommendations />}
-        {activeTab === 'inventory' && <InventoryDashboard />}
+        {activeTab === 'products' && <Products />}
+        {activeTab === 'metrics' && <InventoryDashboard />}
       </main>
 
       <Chat />

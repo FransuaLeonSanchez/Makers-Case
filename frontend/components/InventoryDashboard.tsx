@@ -8,18 +8,36 @@ import { productAPI } from '@/lib/api';
 
 export default function InventoryDashboard() {
   const [inventoryData, setInventoryData] = useState<any>(null);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInventoryData();
+    fetchData();
   }, []);
 
-  const fetchInventoryData = async () => {
+  const fetchData = async () => {
     try {
-      const data = await productAPI.getInventorySummary();
-      setInventoryData(data);
+      console.log('Fetching inventory data...');
+      const inventory = await productAPI.getInventorySummary();
+      console.log('Inventory data:', inventory);
+      
+      console.log('Fetching user preferences...');
+      const preferencesResponse = await fetch('http://localhost:8000/api/recommendations/user-preferences');
+      const preferences = await preferencesResponse.json();
+      console.log('User preferences:', preferences);
+      
+      setInventoryData(inventory);
+      setUserPreferences(preferences);
     } catch (error) {
-      console.error('Error fetching inventory:', error);
+      console.error('Error fetching data:', error);
+      // Set some default data to avoid empty dashboard
+      setInventoryData({
+        total_products: 0,
+        total_stock: 0,
+        total_value: 0,
+        by_category: [],
+        low_stock_products: []
+      });
     } finally {
       setLoading(false);
     }
@@ -55,10 +73,10 @@ export default function InventoryDashboard() {
         className="mb-8"
       >
         <h2 className="text-3xl font-bold text-gray-800 mb-2">
-          Dashboard de Inventario
+          Dashboard de Métricas
         </h2>
         <p className="text-gray-600">
-          Visualización en tiempo real del estado del inventario
+          Análisis de comportamiento, preferencias e inventario
         </p>
       </motion.div>
 
@@ -125,6 +143,78 @@ export default function InventoryDashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* Métricas de Usuario */}
+      {userPreferences && (
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Comportamiento del Usuario</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg shadow-md p-6"
+            >
+              <div>
+                <p className="text-sm opacity-90">Interacciones Totales</p>
+                <p className="text-3xl font-bold">{userPreferences.interaction_count || 0}</p>
+                <p className="text-xs opacity-75 mt-1">Con el sistema</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg shadow-md p-6"
+            >
+              <div>
+                <p className="text-sm opacity-90">Categorías Preferidas</p>
+                <div className="mt-2">
+                  {userPreferences.preferred_categories?.slice(0, 2).map((cat: string, idx: number) => (
+                    <p key={idx} className="text-sm font-medium">
+                      {idx + 1}. {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow-md p-6"
+            >
+              <div>
+                <p className="text-sm opacity-90">Marcas Favoritas</p>
+                <div className="mt-2">
+                  {userPreferences.preferred_brands?.slice(0, 2).map((brand: string, idx: number) => (
+                    <p key={idx} className="text-sm font-medium">
+                      {idx + 1}. {brand}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg shadow-md p-6"
+            >
+              <div>
+                <p className="text-sm opacity-90">Rango de Precio</p>
+                <p className="text-lg font-bold mt-1">
+                  ${userPreferences.price_range?.min?.toFixed(0) || 0} - ${userPreferences.price_range?.max?.toFixed(0) || 0}
+                </p>
+                <p className="text-xs opacity-75 mt-1">Preferencia actual</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div
